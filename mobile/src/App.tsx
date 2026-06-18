@@ -79,8 +79,15 @@ type PublishState = {
 
 const TOKEN_STORAGE_KEY = 'cloud-proj-token'
 const USER_STORAGE_KEY = 'cloud-proj-user'
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000/api'
-const SERVER_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, '')
+const isLocalHost =
+  typeof window !== 'undefined' &&
+  ['localhost', '127.0.0.1'].includes(window.location.hostname)
+const DEFAULT_API_BASE_URL = isLocalHost ? 'http://127.0.0.1:8000/api' : '/api'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.trim() || DEFAULT_API_BASE_URL
+const SERVER_BASE_URL =
+  API_BASE_URL.startsWith('http://') || API_BASE_URL.startsWith('https://')
+    ? API_BASE_URL.replace(/\/api\/?$/, '')
+    : ''
 const MAX_UPLOAD_SIDE = 1600
 const MAX_UPLOAD_BYTES = 900 * 1024
 const MIN_JPEG_QUALITY = 0.55
@@ -342,34 +349,6 @@ function App() {
 
   async function requestJson<T>(input: string, init?: RequestInit): Promise<T> {
     const response = await fetch(input, init)
-    // #region debug-point A:request-json-response
-    response
-      .clone()
-      .text()
-      .then((text) =>
-        fetch('http://172.19.21.113:7777/event', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sessionId: 'mobile-register-html',
-            runId: 'pre-fix',
-            hypothesisId: 'A',
-            location: 'mobile/src/App.tsx:requestJson',
-            msg: '[DEBUG] requestJson received response',
-            data: {
-              input,
-              method: init?.method ?? 'GET',
-              status: response.status,
-              ok: response.ok,
-              contentType: response.headers.get('content-type') ?? '',
-              preview: text.slice(0, 200),
-            },
-            ts: Date.now(),
-          }),
-        }).catch(() => undefined),
-      )
-      .catch(() => undefined)
-    // #endregion
     const rawText = await response.text()
     const contentType = response.headers.get('content-type') ?? ''
     if (!contentType.includes('application/json')) {
@@ -448,27 +427,6 @@ function App() {
     formData.append('phone', registerForm.phone)
     formData.append('password', registerForm.password)
     formData.append('face_photo', registerForm.file)
-    // #region debug-point B:register-file-metadata
-    fetch('http://172.19.21.113:7777/event', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: 'mobile-register-html',
-        runId: 'pre-fix',
-        hypothesisId: 'B',
-        location: 'mobile/src/App.tsx:handleRegister',
-        msg: '[DEBUG] register submit file metadata',
-        data: {
-          name: registerForm.file.name,
-          type: registerForm.file.type,
-          size: registerForm.file.size,
-          lastModified: registerForm.file.lastModified,
-          userAgent: navigator.userAgent,
-        },
-        ts: Date.now(),
-      }),
-    }).catch(() => undefined)
-    // #endregion
 
     try {
       await requestJson<User>(`${API_BASE_URL}/auth/register`, {
@@ -833,6 +791,7 @@ function App() {
               placeholder="请输入学号或工号"
               value={loginForm.studentNo}
               onChange={(event) => setLoginForm({ ...loginForm, studentNo: event.target.value })}
+              autoComplete="username"
               required
             />
           </label>
@@ -843,6 +802,7 @@ function App() {
               placeholder="请输入密码"
               value={loginForm.password}
               onChange={(event) => setLoginForm({ ...loginForm, password: event.target.value })}
+              autoComplete="current-password"
               required
             />
           </label>
@@ -870,6 +830,7 @@ function App() {
               placeholder="请输入学号或工号"
               value={registerForm.studentNo}
               onChange={(event) => setRegisterForm({ ...registerForm, studentNo: event.target.value })}
+              autoComplete="username"
               required
             />
           </label>
@@ -879,6 +840,7 @@ function App() {
               placeholder="请输入真实姓名"
               value={registerForm.name}
               onChange={(event) => setRegisterForm({ ...registerForm, name: event.target.value })}
+              autoComplete="name"
               required
             />
           </label>
@@ -888,6 +850,7 @@ function App() {
               placeholder="请输入手机号"
               value={registerForm.phone}
               onChange={(event) => setRegisterForm({ ...registerForm, phone: event.target.value })}
+              autoComplete="tel"
             />
           </label>
           <label className="field">
@@ -897,6 +860,7 @@ function App() {
               placeholder="请输入密码"
               value={registerForm.password}
               onChange={(event) => setRegisterForm({ ...registerForm, password: event.target.value })}
+              autoComplete="new-password"
               required
             />
           </label>
@@ -907,6 +871,7 @@ function App() {
               placeholder="请再次输入密码"
               value={registerForm.confirmPassword}
               onChange={(event) => setRegisterForm({ ...registerForm, confirmPassword: event.target.value })}
+              autoComplete="new-password"
               required
             />
           </label>
