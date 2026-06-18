@@ -43,6 +43,8 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
+说明：容器内依赖安装使用 `pip install -r requirements.txt`，不依赖 `uv`。
+
 3. 停止服务：
 
 ```bash
