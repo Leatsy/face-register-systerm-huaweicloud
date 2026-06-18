@@ -1,7 +1,7 @@
 FROM python:3.12-slim
 
-ARG PIP_INDEX_URL=https://pypi.org/simple
-ARG PIP_TRUSTED_HOST=
+ARG PIP_INDEX_URL=https://repo.huaweicloud.com/repository/pypi/simple
+ARG PIP_TRUSTED_HOST=repo.huaweicloud.com
 ARG PIP_EXTRA_ARGS=--prefer-binary
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

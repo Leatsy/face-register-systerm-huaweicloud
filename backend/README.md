@@ -45,7 +45,7 @@ docker compose up -d --build
 
 说明：
 - 容器内依赖安装使用 `pip install -r requirements.txt`，不依赖 `uv`。
-- 默认使用官方 PyPI，并提高超时和重试次数，减少慢网络下的构建失败。
+- 默认使用华为云 PyPI 源，并提高超时和重试次数，减少华为云服务器上的构建失败。
 - 如需切换镜像源，可在构建前设置 `PIP_INDEX_URL`、`PIP_TRUSTED_HOST` 和 `PIP_EXTRA_ARGS`。
 
 例如改为阿里云镜像：
