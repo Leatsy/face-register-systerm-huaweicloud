@@ -283,8 +283,7 @@ textarea {
   line-height: 1.6;
 }
 
-.hidden-file-input,
-.hidden-canvas {
+.hidden-file-input {
   display: none;
 }
 
@@ -418,7 +417,6 @@ textarea {
   margin-bottom: 16px;
 }
 
-.camera-video,
 .viewer-image {
   width: 100%;
   border-radius: 22px;
@@ -428,19 +426,6 @@ textarea {
 .viewer-image {
   max-height: calc(100vh - 180px);
   object-fit: contain;
-}
-
-.camera-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 16px;
-}
-
-.camera-error {
-  margin: 12px 0 0;
-  color: #ff9bb2;
-  line-height: 1.6;
 }
 
 .image-viewer-panel {
@@ -600,8 +585,7 @@ textarea {
   .profile-card,
   .section-head,
   .record-item div,
-  .overlay-head,
-  .camera-actions {
+  .overlay-head {
     display: grid;
   }
 

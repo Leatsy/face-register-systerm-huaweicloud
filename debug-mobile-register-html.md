@@ -14,8 +14,8 @@
 ## Hypotheses & Verification
 | ID | Hypothesis | Likelihood | Effort | Evidence |
 |----|------------|------------|--------|----------|
-| A | 手机端拍照上传触发了代理层 HTML 错误页，前端仍按 JSON 解析 | High | Low | Pending |
-| B | 手机端图片格式或体积导致后端异常，响应被代理改写为 HTML | High | Med | Likely confirmed by upload-path difference |
+| A | 手机端拍照上传触发了代理层 HTML 错误页，前端仍按 JSON 解析 | High | Low | Confirmed via 413 response |
+| B | 手机端图片格式或体积导致后端异常，响应被代理改写为 HTML | High | Med | Confirmed via 413 response |
 | C | 手机端注册请求被错误回退到静态站点，拿到了 `index.html` | Med | Low | Pending |
 | D | 前端 `requestJson()` 缺少非 JSON 响应兜底，掩盖了真实错误 | High | Low | Confirmed |
 | E | 更新标准照片接口成功文案是旧文本残留 | High | Low | Confirmed |
@@ -24,11 +24,13 @@
 - Debug Server running at `http://172.19.21.113:7777/event`
 - Static evidence: registration page still used raw `input type=file` with `capture="user"`, while successful face-photo update flow already used browser camera capture plus canvas JPEG generation.
 - Symptom evidence: mobile camera upload fails only on deployed server, desktop file upload and local registration succeed, which matches a proxy/body-size failure much more than an application validation failure.
+- Runtime evidence: after adding non-JSON handling, mobile registration now reports `413` and an explicit "上传图片过大" message.
 - Code evidence: `requestJson()` previously called `response.json()` unconditionally, so any HTML error page was surfaced only as `Unexpected token '<'`.
 - Code evidence: `/users/me/face-photo` returned stale success text even though encoding had already been wired in.
 
 ## Verification Conclusion
 - Applied focused fix:
-  - unify register upload flow with camera capture + compressed JPEG path;
+  - remove standalone camera buttons and unify upload entry to "选择图片";
+  - compress register, face-photo update, and check-in images on the client before upload;
   - improve non-JSON response handling to show readable status/error hints;
   - update face-photo success message to current behavior.

@@ -1,4 +1,4 @@
-import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 
 type View =
@@ -46,8 +46,6 @@ type Notice = {
   message: string
 }
 
-type CameraTarget = 'check-in' | 'face-photo' | 'register-photo'
-
 type LoginState = {
   studentNo: string
   password: string
@@ -83,6 +81,63 @@ const TOKEN_STORAGE_KEY = 'cloud-proj-token'
 const USER_STORAGE_KEY = 'cloud-proj-user'
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000/api'
 const SERVER_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, '')
+const MAX_UPLOAD_SIDE = 1600
+const MAX_UPLOAD_BYTES = 900 * 1024
+const MIN_JPEG_QUALITY = 0.55
+
+function loadImageFromFile(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    const objectUrl = URL.createObjectURL(file)
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl)
+      resolve(image)
+    }
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
+      reject(new Error('图片读取失败'))
+    }
+    image.src = objectUrl
+  })
+}
+
+async function compressImageFile(file: File): Promise<File> {
+  if (!file.type.startsWith('image/')) {
+    return file
+  }
+
+  const image = await loadImageFromFile(file)
+  const scale = Math.min(1, MAX_UPLOAD_SIDE / Math.max(image.width, image.height))
+  const width = Math.max(1, Math.round(image.width * scale))
+  const height = Math.max(1, Math.round(image.height * scale))
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+
+  const context = canvas.getContext('2d')
+  if (!context) {
+    throw new Error('浏览器不支持图片压缩画布')
+  }
+
+  context.drawImage(image, 0, 0, width, height)
+
+  let quality = 0.86
+  let blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality))
+  while (blob && blob.size > MAX_UPLOAD_BYTES && quality > MIN_JPEG_QUALITY) {
+    quality -= 0.08
+    blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality))
+  }
+
+  if (!blob) {
+    throw new Error('图片压缩失败')
+  }
+
+  const targetName = file.name.replace(/\.[^.]+$/, '') || `image-${Date.now()}`
+  return new File([blob], `${targetName}.jpg`, {
+    type: 'image/jpeg',
+    lastModified: Date.now(),
+  })
+}
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString('zh-CN', {
@@ -142,7 +197,6 @@ function App() {
   const [checkInPreviewUrl, setCheckInPreviewUrl] = useState('')
   const [viewerImageUrl, setViewerImageUrl] = useState('')
   const [viewerTitle, setViewerTitle] = useState('')
-  const [cameraTarget, setCameraTarget] = useState<CameraTarget | null>(null)
   const [profile, setProfile] = useState<User | null>(null)
   const [records, setRecords] = useState<AttendanceRecord[]>([])
   const [events, setEvents] = useState<EventItem[]>([])
@@ -156,14 +210,10 @@ function App() {
     tone: 'neutral',
     message: '欢迎使用云端人脸签到系统。',
   })
-  const [cameraError, setCameraError] = useState('')
 
   const registerPhotoInputRef = useRef<HTMLInputElement | null>(null)
   const facePhotoInputRef = useRef<HTMLInputElement | null>(null)
   const checkInPhotoInputRef = useRef<HTMLInputElement | null>(null)
-  const cameraVideoRef = useRef<HTMLVideoElement | null>(null)
-  const cameraCanvasRef = useRef<HTMLCanvasElement | null>(null)
-  const cameraStreamRef = useRef<MediaStream | null>(null)
 
   const authHeaders = useMemo<Record<string, string>>(() => {
     return token ? { Authorization: `Bearer ${token}` } : ({} as Record<string, string>)
@@ -253,101 +303,8 @@ function App() {
     return () => URL.revokeObjectURL(url)
   }, [checkInPhoto])
 
-  useEffect(() => {
-    if (!cameraTarget || !cameraVideoRef.current || !cameraStreamRef.current) {
-      return
-    }
-
-    cameraVideoRef.current.srcObject = cameraStreamRef.current
-    void cameraVideoRef.current.play().catch(() => {
-      setCameraError('摄像头预览启动失败，请检查浏览器权限。')
-    })
-  }, [cameraTarget])
-
-  useEffect(() => {
-    return () => {
-      stopCameraStream()
-    }
-  }, [])
-
   function showNotice(message: string, tone: StatusTone = 'neutral') {
     setNotice({ message, tone })
-  }
-
-  function stopCameraStream() {
-    if (!cameraStreamRef.current) {
-      return
-    }
-
-    cameraStreamRef.current.getTracks().forEach((track) => track.stop())
-    cameraStreamRef.current = null
-  }
-
-  function closeCameraModal() {
-    stopCameraStream()
-    setCameraTarget(null)
-    setCameraError('')
-  }
-
-  async function openCamera(target: CameraTarget) {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      showNotice('当前浏览器不支持摄像头拍照，请改用文件选择。', 'error')
-      return
-    }
-
-    try {
-      stopCameraStream()
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: target === 'check-in' ? 'environment' : 'user',
-        },
-        audio: false,
-      })
-      cameraStreamRef.current = stream
-      setCameraTarget(target)
-      setCameraError('')
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '无法打开摄像头'
-      showNotice(`摄像头启动失败：${message}`, 'error')
-    }
-  }
-
-  async function capturePhotoFromCamera() {
-    if (!cameraVideoRef.current || !cameraCanvasRef.current || !cameraTarget) {
-      return
-    }
-
-    const video = cameraVideoRef.current
-    const canvas = cameraCanvasRef.current
-    canvas.width = video.videoWidth || 1280
-    canvas.height = video.videoHeight || 720
-
-    const context = canvas.getContext('2d')
-    if (!context) {
-      setCameraError('当前浏览器不支持拍照画布。')
-      return
-    }
-
-    context.drawImage(video, 0, 0, canvas.width, canvas.height)
-    const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob(resolve, 'image/jpeg', 0.92)
-    })
-
-    if (!blob) {
-      setCameraError('拍照失败，请重试。')
-      return
-    }
-
-    const file = new File([blob], `capture-${Date.now()}.jpg`, { type: 'image/jpeg' })
-    if (cameraTarget === 'check-in') {
-      setCheckInPhoto(file)
-    } else if (cameraTarget === 'face-photo') {
-      setFacePhoto(file)
-    } else {
-      setRegisterForm((current) => ({ ...current, file }))
-    }
-
-    closeCameraModal()
   }
 
   function openImageViewer(imageUrl: string, title: string) {
@@ -360,16 +317,27 @@ function App() {
     setViewerTitle('')
   }
 
-  function handleFacePhotoChange(event: ChangeEvent<HTMLInputElement>) {
-    setFacePhoto(event.target.files?.[0] ?? null)
-  }
+  async function applySelectedImage(
+    file: File | null,
+    setter: (file: File | null) => void,
+    label: string,
+  ) {
+    if (!file) {
+      setter(null)
+      return
+    }
 
-  function handleCheckInPhotoChange(event: ChangeEvent<HTMLInputElement>) {
-    setCheckInPhoto(event.target.files?.[0] ?? null)
-  }
-
-  function handleRegisterPhotoChange(event: ChangeEvent<HTMLInputElement>) {
-    setRegisterForm((current) => ({ ...current, file: event.target.files?.[0] ?? null }))
+    try {
+      const compressedFile = await compressImageFile(file)
+      setter(compressedFile)
+      if (compressedFile.size < file.size) {
+        showNotice(`${label}已自动压缩后待上传`, 'neutral')
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '图片处理失败'
+      showNotice(`${label}处理失败：${message}`, 'error')
+      setter(null)
+    }
   }
 
   async function requestJson<T>(input: string, init?: RequestInit): Promise<T> {
@@ -408,7 +376,7 @@ function App() {
       const normalizedPreview = rawText.replace(/\s+/g, ' ').slice(0, 120)
       throw new Error(
         normalizedPreview.includes('413') || response.status === 413
-          ? '上传图片过大，服务器已拒绝请求。请改用“拍照上传”或压缩图片后重试。'
+          ? '上传图片过大，服务器已拒绝请求。请重新选择图片，或联系管理员放宽上传大小限制。'
           : `服务器返回了非 JSON 响应（HTTP ${response.status || 'unknown'}）。${normalizedPreview || '请检查 Nginx 反向代理配置。'}`,
       )
     }
@@ -816,14 +784,10 @@ function App() {
                     className="hidden-file-input"
                     type="file"
                     accept="image/*"
-                    capture="environment"
-                    onChange={handleCheckInPhotoChange}
+                    onChange={(event) => void applySelectedImage(event.target.files?.[0] ?? null, setCheckInPhoto, '签到照片')}
                   />
                   <button type="button" className="ghost-action" onClick={() => checkInPhotoInputRef.current?.click()}>
                     选择图片
-                  </button>
-                  <button type="button" className="ghost-action" onClick={() => void openCamera('check-in')}>
-                    拍照上传
                   </button>
                 </div>
                 {checkInPreviewUrl ? (
@@ -836,7 +800,7 @@ function App() {
                     <span>点击放大查看</span>
                   </button>
                 ) : (
-                  <div className="image-preview-empty">支持相册选图，也支持直接打开摄像头拍照。</div>
+                  <div className="image-preview-empty">手机端点“选择图片”后通常仍可选“相册”或“拍照”，系统会先自动压缩再上传。</div>
                 )}
               </div>
               <button type="submit">确认签到</button>
@@ -954,14 +918,17 @@ function App() {
                 className="hidden-file-input"
                 type="file"
                 accept="image/*"
-                onChange={handleRegisterPhotoChange}
+                onChange={(event) =>
+                  void applySelectedImage(
+                    event.target.files?.[0] ?? null,
+                    (file) => setRegisterForm((current) => ({ ...current, file })),
+                    '标准照片',
+                  )
+                }
                 required
               />
               <button type="button" className="ghost-action" onClick={() => registerPhotoInputRef.current?.click()}>
                 选择图片
-              </button>
-              <button type="button" className="ghost-action" onClick={() => void openCamera('register-photo')}>
-                拍照上传
               </button>
             </div>
             {registerPhotoPreviewUrl ? (
@@ -974,7 +941,7 @@ function App() {
                 <span>点击放大查看</span>
               </button>
             ) : (
-              <div className="image-preview-empty">建议使用正脸清晰照片。手机端可直接点“拍照上传”，会自动压缩后再提交。</div>
+              <div className="image-preview-empty">建议使用正脸清晰照片。选择后会自动压缩，再进入预览和上传。</div>
             )}
           </div>
           <button type="submit">注册并自动登录</button>
@@ -1017,14 +984,10 @@ function App() {
                     className="hidden-file-input"
                     type="file"
                     accept="image/*"
-                    capture="user"
-                    onChange={handleFacePhotoChange}
+                    onChange={(event) => void applySelectedImage(event.target.files?.[0] ?? null, setFacePhoto, '标准照片')}
                   />
                   <button type="button" className="ghost-action" onClick={() => facePhotoInputRef.current?.click()}>
                     选择图片
-                  </button>
-                  <button type="button" className="ghost-action" onClick={() => void openCamera('face-photo')}>
-                    拍照上传
                   </button>
                 </div>
                 {facePhotoPreviewUrl ? (
@@ -1037,7 +1000,7 @@ function App() {
                     <span>点击放大查看</span>
                   </button>
                 ) : (
-                  <div className="image-preview-empty">选择或拍摄一张新的标准正脸照片后，会在这里显示预览。</div>
+                  <div className="image-preview-empty">选择新的标准正脸照片后，会先自动压缩，再在这里显示预览。</div>
                 )}
               </div>
               <button type="submit">上传标准照片</button>
@@ -1132,28 +1095,6 @@ function App() {
       </section>
 
       {renderContent()}
-
-      {cameraTarget ? (
-        <div className="overlay-shell" onClick={closeCameraModal}>
-          <div className="overlay-panel" onClick={(event) => event.stopPropagation()}>
-            <div className="overlay-head">
-              <div>
-                <p className="section-kicker">拍照上传</p>
-                <h3>{cameraTarget === 'check-in' ? '签到拍照' : '标准照片拍摄'}</h3>
-              </div>
-              <button className="text-action" onClick={closeCameraModal}>关闭</button>
-            </div>
-            <video ref={cameraVideoRef} className="camera-video" autoPlay playsInline muted />
-            <canvas ref={cameraCanvasRef} className="hidden-canvas" />
-            {cameraError ? <p className="camera-error">{cameraError}</p> : null}
-            <div className="camera-actions">
-              <button type="button" className="ghost-action" onClick={closeCameraModal}>取消</button>
-              <button type="button" onClick={() => void capturePhotoFromCamera()}>拍照并使用</button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       {viewerImageUrl ? (
         <div className="overlay-shell" onClick={closeImageViewer}>
           <div className="overlay-panel image-viewer-panel" onClick={(event) => event.stopPropagation()}>
