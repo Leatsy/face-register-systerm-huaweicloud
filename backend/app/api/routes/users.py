@@ -71,4 +71,4 @@ def update_face_photo(
     )
     db.add(embedding)
     db.commit()
-    return MessageResponse(message="标准人脸照片已更新，待任务3接入编码逻辑")
+    return MessageResponse(message="标准人脸照片已更新，人脸特征已重新录入")

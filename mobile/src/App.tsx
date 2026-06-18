@@ -46,7 +46,7 @@ type Notice = {
   message: string
 }
 
-type CameraTarget = 'check-in' | 'face-photo'
+type CameraTarget = 'check-in' | 'face-photo' | 'register-photo'
 
 type LoginState = {
   studentNo: string
@@ -137,6 +137,7 @@ function App() {
   const [loginForm, setLoginForm] = useState<LoginState>({ studentNo: '', password: '' })
   const [facePhoto, setFacePhoto] = useState<File | null>(null)
   const [checkInPhoto, setCheckInPhoto] = useState<File | null>(null)
+  const [registerPhotoPreviewUrl, setRegisterPhotoPreviewUrl] = useState('')
   const [facePhotoPreviewUrl, setFacePhotoPreviewUrl] = useState('')
   const [checkInPreviewUrl, setCheckInPreviewUrl] = useState('')
   const [viewerImageUrl, setViewerImageUrl] = useState('')
@@ -157,6 +158,7 @@ function App() {
   })
   const [cameraError, setCameraError] = useState('')
 
+  const registerPhotoInputRef = useRef<HTMLInputElement | null>(null)
   const facePhotoInputRef = useRef<HTMLInputElement | null>(null)
   const checkInPhotoInputRef = useRef<HTMLInputElement | null>(null)
   const cameraVideoRef = useRef<HTMLVideoElement | null>(null)
@@ -217,6 +219,17 @@ function App() {
 
     void refreshProfile()
   }, [token])
+
+  useEffect(() => {
+    if (!registerForm.file) {
+      setRegisterPhotoPreviewUrl('')
+      return
+    }
+
+    const url = URL.createObjectURL(registerForm.file)
+    setRegisterPhotoPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [registerForm.file])
 
   useEffect(() => {
     if (!facePhoto) {
@@ -328,8 +341,10 @@ function App() {
     const file = new File([blob], `capture-${Date.now()}.jpg`, { type: 'image/jpeg' })
     if (cameraTarget === 'check-in') {
       setCheckInPhoto(file)
-    } else {
+    } else if (cameraTarget === 'face-photo') {
       setFacePhoto(file)
+    } else {
+      setRegisterForm((current) => ({ ...current, file }))
     }
 
     closeCameraModal()
@@ -351,6 +366,10 @@ function App() {
 
   function handleCheckInPhotoChange(event: ChangeEvent<HTMLInputElement>) {
     setCheckInPhoto(event.target.files?.[0] ?? null)
+  }
+
+  function handleRegisterPhotoChange(event: ChangeEvent<HTMLInputElement>) {
+    setRegisterForm((current) => ({ ...current, file: event.target.files?.[0] ?? null }))
   }
 
   async function requestJson<T>(input: string, init?: RequestInit): Promise<T> {
@@ -383,7 +402,18 @@ function App() {
       )
       .catch(() => undefined)
     // #endregion
-    const data = (await response.json()) as T & { detail?: string; message?: string }
+    const rawText = await response.text()
+    const contentType = response.headers.get('content-type') ?? ''
+    if (!contentType.includes('application/json')) {
+      const normalizedPreview = rawText.replace(/\s+/g, ' ').slice(0, 120)
+      throw new Error(
+        normalizedPreview.includes('413') || response.status === 413
+          ? '上传图片过大，服务器已拒绝请求。请改用“拍照上传”或压缩图片后重试。'
+          : `服务器返回了非 JSON 响应（HTTP ${response.status || 'unknown'}）。${normalizedPreview || '请检查 Nginx 反向代理配置。'}`,
+      )
+    }
+
+    const data = JSON.parse(rawText) as T & { detail?: string; message?: string }
     if (!response.ok) {
       throw new Error(data.detail ?? data.message ?? '请求失败')
     }
@@ -916,16 +946,37 @@ function App() {
               required
             />
           </label>
-          <label className="field">
+          <div className="field">
             <span>标准人脸照片</span>
-            <input
-              type="file"
-              accept="image/*"
-              capture="user"
-              onChange={(event) => setRegisterForm({ ...registerForm, file: event.target.files?.[0] ?? null })}
-              required
-            />
-          </label>
+            <div className="upload-actions">
+              <input
+                ref={registerPhotoInputRef}
+                className="hidden-file-input"
+                type="file"
+                accept="image/*"
+                onChange={handleRegisterPhotoChange}
+                required
+              />
+              <button type="button" className="ghost-action" onClick={() => registerPhotoInputRef.current?.click()}>
+                选择图片
+              </button>
+              <button type="button" className="ghost-action" onClick={() => void openCamera('register-photo')}>
+                拍照上传
+              </button>
+            </div>
+            {registerPhotoPreviewUrl ? (
+              <button
+                type="button"
+                className="image-preview-card"
+                onClick={() => openImageViewer(registerPhotoPreviewUrl, '注册标准照片预览')}
+              >
+                <img src={registerPhotoPreviewUrl} alt="注册标准照片预览" />
+                <span>点击放大查看</span>
+              </button>
+            ) : (
+              <div className="image-preview-empty">建议使用正脸清晰照片。手机端可直接点“拍照上传”，会自动压缩后再提交。</div>
+            )}
+          </div>
           <button type="submit">注册并自动登录</button>
         </form>
       </section>
