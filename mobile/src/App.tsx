@@ -355,6 +355,34 @@ function App() {
 
   async function requestJson<T>(input: string, init?: RequestInit): Promise<T> {
     const response = await fetch(input, init)
+    // #region debug-point A:request-json-response
+    response
+      .clone()
+      .text()
+      .then((text) =>
+        fetch('http://172.19.21.113:7777/event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: 'mobile-register-html',
+            runId: 'pre-fix',
+            hypothesisId: 'A',
+            location: 'mobile/src/App.tsx:requestJson',
+            msg: '[DEBUG] requestJson received response',
+            data: {
+              input,
+              method: init?.method ?? 'GET',
+              status: response.status,
+              ok: response.ok,
+              contentType: response.headers.get('content-type') ?? '',
+              preview: text.slice(0, 200),
+            },
+            ts: Date.now(),
+          }),
+        }).catch(() => undefined),
+      )
+      .catch(() => undefined)
+    // #endregion
     const data = (await response.json()) as T & { detail?: string; message?: string }
     if (!response.ok) {
       throw new Error(data.detail ?? data.message ?? '请求失败')
@@ -422,6 +450,27 @@ function App() {
     formData.append('phone', registerForm.phone)
     formData.append('password', registerForm.password)
     formData.append('face_photo', registerForm.file)
+    // #region debug-point B:register-file-metadata
+    fetch('http://172.19.21.113:7777/event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'mobile-register-html',
+        runId: 'pre-fix',
+        hypothesisId: 'B',
+        location: 'mobile/src/App.tsx:handleRegister',
+        msg: '[DEBUG] register submit file metadata',
+        data: {
+          name: registerForm.file.name,
+          type: registerForm.file.type,
+          size: registerForm.file.size,
+          lastModified: registerForm.file.lastModified,
+          userAgent: navigator.userAgent,
+        },
+        ts: Date.now(),
+      }),
+    }).catch(() => undefined)
+    // #endregion
 
     try {
       await requestJson<User>(`${API_BASE_URL}/auth/register`, {

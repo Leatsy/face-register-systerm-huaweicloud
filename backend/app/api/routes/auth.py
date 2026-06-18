@@ -24,6 +24,39 @@ def register(
     face_photo: UploadFile = File(...),
     db: Session = Depends(get_db),
 ) -> UserOut:
+    # #region debug-point C:register-entry
+    import json, urllib.request
+    _current_pos = face_photo.file.tell()
+    face_photo.file.seek(0, 2)
+    _file_size = face_photo.file.tell()
+    face_photo.file.seek(_current_pos)
+    try:
+        urllib.request.urlopen(
+            urllib.request.Request(
+                "http://172.19.21.113:7777/event",
+                data=json.dumps(
+                    {
+                        "sessionId": "mobile-register-html",
+                        "runId": "pre-fix",
+                        "hypothesisId": "C",
+                        "location": "backend/app/api/routes/auth.py:register",
+                        "msg": "[DEBUG] register endpoint received request",
+                        "data": {
+                            "student_no": student_no,
+                            "phone_provided": bool(phone),
+                            "filename": face_photo.filename,
+                            "content_type": face_photo.content_type,
+                            "file_size": _file_size,
+                        },
+                    }
+                ).encode(),
+                headers={"Content-Type": "application/json"},
+            ),
+            timeout=2,
+        ).read()
+    except Exception:
+        pass
+    # #endregion
     existing_user = db.scalar(select(User).where(User.student_no == student_no))
     if existing_user:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="学号/工号已存在")
