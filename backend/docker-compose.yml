@@ -3,6 +3,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
+        PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-}
+        PIP_EXTRA_ARGS: ${PIP_EXTRA_ARGS:---prefer-binary}
     container_name: cloud-proj-backend
     env_file:
       - .env

@@ -43,7 +43,19 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-说明：容器内依赖安装使用 `pip install -r requirements.txt`，不依赖 `uv`。
+说明：
+- 容器内依赖安装使用 `pip install -r requirements.txt`，不依赖 `uv`。
+- 默认使用官方 PyPI，并提高超时和重试次数，减少慢网络下的构建失败。
+- 如需切换镜像源，可在构建前设置 `PIP_INDEX_URL`、`PIP_TRUSTED_HOST` 和 `PIP_EXTRA_ARGS`。
+
+例如改为阿里云镜像：
+
+```bash
+export PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
+export PIP_TRUSTED_HOST=mirrors.aliyun.com
+export PIP_EXTRA_ARGS=--prefer-binary
+docker compose up -d --build
+```
 
 3. 停止服务：
 
