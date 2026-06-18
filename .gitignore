@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv/
+backend/.env
+backend/uploads/
+backend/*.db
+mobile/node_modules/
+mobile/dist/
