@@ -3,6 +3,7 @@ FROM python:3.10-slim
 ARG PIP_INDEX_URL=https://repo.huaweicloud.com/repository/pypi/simple
 ARG PIP_TRUSTED_HOST=repo.huaweicloud.com
 ARG PIP_EXTRA_ARGS=--prefer-binary
+ARG INSTALL_BUILD_DEPS=0
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -13,24 +14,19 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-RUN sed -i 's@deb.debian.org@repo.huaweicloud.com@g' /etc/apt/sources.list \
- && sed -i 's@security.debian.org@repo.huaweicloud.com@g' /etc/apt/sources.list
-# insightface 编译依赖
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    gcc \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
-
 COPY requirements.txt README.md ./
 
 RUN set -eux; \
+    if [ "${INSTALL_BUILD_DEPS}" = "1" ]; then \
+        apt-get update; \
+        apt-get install -y --no-install-recommends gcc g++; \
+        rm -rf /var/lib/apt/lists/*; \
+    fi; \
     if [ -n "${PIP_TRUSTED_HOST}" ]; then \
         TRUSTED_HOST_ARGS="--trusted-host ${PIP_TRUSTED_HOST}"; \
     else \
         TRUSTED_HOST_ARGS=""; \
     fi; \
-    pip install --upgrade pip setuptools wheel; \
     pip install --no-cache-dir \
         --index-url "${PIP_INDEX_URL}" \
         ${TRUSTED_HOST_ARGS} \
