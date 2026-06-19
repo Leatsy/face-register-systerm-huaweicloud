@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.10-slim
 
 ARG PIP_INDEX_URL=https://repo.huaweicloud.com/repository/pypi/simple
 ARG PIP_TRUSTED_HOST=repo.huaweicloud.com
@@ -13,18 +13,28 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# insightface 编译依赖
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    gcc \
+    g++ \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt README.md ./
+
 RUN set -eux; \
     if [ -n "${PIP_TRUSTED_HOST}" ]; then \
         TRUSTED_HOST_ARGS="--trusted-host ${PIP_TRUSTED_HOST}"; \
     else \
         TRUSTED_HOST_ARGS=""; \
     fi; \
+    pip install --upgrade pip setuptools wheel; \
     pip install --no-cache-dir \
-    --index-url "${PIP_INDEX_URL}" \
-    ${TRUSTED_HOST_ARGS} \
-    ${PIP_EXTRA_ARGS} \
-    -r requirements.txt
+        --index-url "${PIP_INDEX_URL}" \
+        ${TRUSTED_HOST_ARGS} \
+        ${PIP_EXTRA_ARGS} \
+        -r requirements.txt
 
 COPY app ./app
 COPY .env.example ./
