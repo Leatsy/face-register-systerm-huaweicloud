@@ -14,7 +14,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # insightface 编译依赖
-RUN apt-get install -y \
+RUN apt-get update && apt-get install -y \
     build-essential \
     gcc \
     g++ \
