@@ -18,7 +18,6 @@ RUN apt-get install -y \
     build-essential \
     gcc \
     g++ \
-    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt README.md ./
