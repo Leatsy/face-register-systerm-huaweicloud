@@ -1,9 +1,10 @@
-FROM python:3.10-slim
+FROM python:3.12-slim
 
 ARG PIP_INDEX_URL=https://repo.huaweicloud.com/repository/pypi/simple
 ARG PIP_TRUSTED_HOST=repo.huaweicloud.com
 ARG PIP_EXTRA_ARGS=--prefer-binary
-ARG INSTALL_BUILD_DEPS=0
+ARG INSTALL_BUILD_DEPS=1
+ARG DEBIAN_MIRROR=repo.huaweicloud.com
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -14,14 +15,22 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY requirements.txt README.md ./
-
 RUN set -eux; \
+    if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+        sed -i "s|deb.debian.org|${DEBIAN_MIRROR}|g; s|security.debian.org|${DEBIAN_MIRROR}|g" /etc/apt/sources.list.d/debian.sources; \
+    fi; \
+    if [ -f /etc/apt/sources.list ]; then \
+        sed -i "s|deb.debian.org|${DEBIAN_MIRROR}|g; s|security.debian.org|${DEBIAN_MIRROR}|g" /etc/apt/sources.list; \
+    fi; \
     if [ "${INSTALL_BUILD_DEPS}" = "1" ]; then \
         apt-get update; \
         apt-get install -y --no-install-recommends gcc g++; \
         rm -rf /var/lib/apt/lists/*; \
-    fi; \
+    fi
+
+COPY requirements.txt ./
+
+RUN set -eux; \
     if [ -n "${PIP_TRUSTED_HOST}" ]; then \
         TRUSTED_HOST_ARGS="--trusted-host ${PIP_TRUSTED_HOST}"; \
     else \
@@ -33,6 +42,7 @@ RUN set -eux; \
         ${PIP_EXTRA_ARGS} \
         -r requirements.txt
 
+COPY README.md ./
 COPY app ./app
 COPY .env.example ./
 
