@@ -981,8 +981,7 @@ function App() {
               </div>
               {records.length === 0 ? (
                 <div className="empty-state">
-                  <strong>暂无可展示的签到记录</strong>
-                  <p>任务 3 接入识别成功后的记录后，这里会展示个人签到历史。</p>
+                  <strong>暂无可展示的签到记录喵</strong>
                 </div>
               ) : (
                 <div className="record-list">
