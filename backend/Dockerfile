@@ -13,6 +13,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+RUN sed -i 's@deb.debian.org@repo.huaweicloud.com@g' /etc/apt/sources.list \
+ && sed -i 's@security.debian.org@repo.huaweicloud.com@g' /etc/apt/sources.list
 # insightface 编译依赖
 RUN apt-get update && apt-get install -y \
     build-essential \
