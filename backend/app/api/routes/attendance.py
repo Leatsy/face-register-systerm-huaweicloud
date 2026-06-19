@@ -31,7 +31,10 @@ def check_in(
     if event.end_time < now:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="签到事件已结束")
 
-    recognition = recognize_user_from_upload(face_photo, db)
+    try:
+        recognition = recognize_user_from_upload(face_photo, db)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
     snapshot_url = save_upload_file(face_photo, folder="checkins")
 
     existing_record = None

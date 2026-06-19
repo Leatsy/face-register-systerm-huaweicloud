@@ -680,7 +680,7 @@ function App() {
           <label className="field">
             <span>事件名称</span>
             <input
-              placeholder="例如：软件工程课堂签到"
+              placeholder="例如：我只是想让你签个到"
               value={publishForm.title}
               onChange={(event) => setPublishForm({ ...publishForm, title: event.target.value })}
               required
@@ -688,7 +688,7 @@ function App() {
           </label>
           <div className="field">
             <span>开始时间</span>
-            <div className="inline-note">开始时间将在点击“发布签到事件”时由服务器自动记录。</div>
+            <div className="inline-note">不让你改喵~</div>
           </div>
           <label className="field">
             <span>结束时间</span>
@@ -704,7 +704,7 @@ function App() {
             <span>事件描述</span>
             <textarea
               rows={4}
-              placeholder="填写签到场景、班级、地点等说明"
+              placeholder="填写签到说明，凭什么要签到"
               value={publishForm.description}
               onChange={(event) => setPublishForm({ ...publishForm, description: event.target.value })}
               required
@@ -758,7 +758,7 @@ function App() {
                     <span>点击放大查看</span>
                   </button>
                 ) : (
-                  <div className="image-preview-empty">手机端点“选择图片”后通常仍可选“相册”或“拍照”，系统会先自动压缩再上传。</div>
+                  <div className="image-preview-empty">Preview~</div>
                 )}
               </div>
               <button type="submit">确认签到</button>
@@ -906,7 +906,7 @@ function App() {
                 <span>点击放大查看</span>
               </button>
             ) : (
-              <div className="image-preview-empty">建议使用正脸清晰照片。选择后会自动压缩，再进入预览和上传。</div>
+              <div className="image-preview-empty">注意使用正脸清晰照片喵</div>
             )}
           </div>
           <button type="submit">注册并自动登录</button>
@@ -965,7 +965,7 @@ function App() {
                     <span>点击放大查看</span>
                   </button>
                 ) : (
-                  <div className="image-preview-empty">选择新的标准正脸照片后，会先自动压缩，再在这里显示预览。</div>
+                  <div className="image-preview-empty">Preview~</div>
                 )}
               </div>
               <button type="submit">上传标准照片</button>

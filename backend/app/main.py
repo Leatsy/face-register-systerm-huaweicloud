@@ -25,6 +25,7 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup() -> None:
     settings.local_upload_path.mkdir(parents=True, exist_ok=True)
+    settings.face_model_root_path.mkdir(parents=True, exist_ok=True)
     initialize_database(engine)
 
 

@@ -70,6 +70,10 @@ docker compose down
 - 切换到华为云 OBS 时，将 `STORAGE_BACKEND` 改为 `obs`，并补全 OBS 相关环境变量。
 - `ALLOWED_ORIGINS` 使用逗号分隔，填写前端访问域名。
 - `PUBLIC_API_BASE_URL` 填后端公网访问地址，例如 `https://api.example.com`。
+- `FACE_MODEL_NAME` 默认使用 `buffalo_l`，首次启动会自动下载 InsightFace 模型包。
+- `FACE_MODEL_ROOT` 建议保留为 `./.insightface`，Compose 已将其挂载到容器中，避免每次重建重新下载模型。
+- `FACE_MATCH_THRESHOLD` 可在 `0.45 ~ 0.55` 之间微调，默认 `0.48` 更适合 ArcFace 余弦相似度。
+- `FACE_EXECUTION_PROVIDERS` 默认为 `CPUExecutionProvider`；如果以后上 GPU，可改成 `CUDAExecutionProvider,CPUExecutionProvider`。
 
 ## 推荐部署方式
 

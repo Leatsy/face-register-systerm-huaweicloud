@@ -27,6 +27,13 @@ class Settings(BaseSettings):
     obs_secret_access_key: str = ""
     obs_cdn_base_url: str = ""
 
+    face_model_name: str = "buffalo_l"
+    face_model_root: str = "./.insightface"
+    face_match_threshold: float = 0.48
+    face_detect_threshold: float = 0.55
+    face_detection_size: int = 640
+    face_execution_providers: str = "CPUExecutionProvider"
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=False)
 
     @property
@@ -34,8 +41,16 @@ class Settings(BaseSettings):
         return Path(self.local_upload_dir)
 
     @property
+    def face_model_root_path(self) -> Path:
+        return Path(self.face_model_root)
+
+    @property
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
+
+    @property
+    def face_provider_list(self) -> list[str]:
+        return [provider.strip() for provider in self.face_execution_providers.split(",") if provider.strip()]
 
 
 @lru_cache
